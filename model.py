@@ -42,17 +42,18 @@ class Triplet_Network(Chain):
             positive_dists = np.linalg.norm(anchor_embeddings.data - positive_embeddings.data, axis=1)
             negative_dists = np.linalg.norm(anchor_embeddings.data - negative_embeddings.data, axis=1)
             diff_dists = negative_dists - positive_dists
-            # 0 < d(x_a-x_n) - d(x_a - x_p) < margin
+            # 0 < d(x_a - x_n) - d(x_a - x_p) < margin
             semihard_triplets_mask = np.logical_and(diff_dists>0, diff_dists<margin)
             if True in semihard_triplets_mask:
                 anchor_embeddings = anchor_embeddings[semihard_triplets_mask]
                 positive_embeddings = positive_embeddings[semihard_triplets_mask]
                 negative_embeddings = negative_embeddings[semihard_triplets_mask]
             else:
-                # semihardがないときは適当に学習させる
-                anchor_embeddings = anchor_embeddings[0:1]
-                positive_embeddings = positive_embeddings[0:1]
-                negative_embeddings = negative_embeddings[0:1]
+                # semihardがないときは誤差が最小なペアを学習させる
+                mask = np.argmin(diff_dists)
+                anchor_embeddings = np.expand_dims(anchor_embeddings[mask], axis=0)
+                positive_embeddings = np.expand_dims(positive_embeddings[mask], axis=0)
+                negative_embeddings = np.expand_dims(negative_embeddings[mask], axis=0)
                 
         # triplet lossを計算
         loss = F.triplet(anchor_embeddings, positive_embeddings, negative_embeddings, margin=margin)
